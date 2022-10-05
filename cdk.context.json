@@ -1,0 +1,9 @@
+{
+  "hosted-zone:account=806124249357:domainName=unstacked.xyz:region=us-west-2": {
+    "Id": "/hostedzone/Z04561051B2CQ19N7BDSI",
+    "Name": "unstacked.xyz."
+  },
+  "acknowledged-issue-numbers": [
+    21902
+  ]
+}
