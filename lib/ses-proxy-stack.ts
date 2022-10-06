@@ -9,7 +9,9 @@ import {
   aws_lambda_nodejs,
   aws_iam as iam,
   RemovalPolicy,
+  Duration,
 } from "aws-cdk-lib";
+import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import { join } from "path";
 
@@ -18,9 +20,6 @@ export class SesProxyStack extends Stack {
     super(scope, id, props);
 
     const domains = ["unstacked.xyz"];
-    domains.forEach((domain)=>{
-      this.provisionDomain(domain)
-    })
 
     const bucket = new s3.Bucket(this, "Bucket", {
       autoDeleteObjects: true,
@@ -38,13 +37,26 @@ export class SesProxyStack extends Stack {
       {
         entry: join(__dirname, "ses-proxy.lambda.ts"),
         handler: "handler",
+        depsLockFilePath: join(__dirname, "..", "package-lock.json"),
+        environment: {
+          S3_BUCKET_NAME: bucket.bucketName,
+        },
+        logRetention: RetentionDays.ONE_WEEK,
       }
     );
     bucket.grantReadWrite(proxyFunction);
+    proxyFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ses:SendRawEmail"],
+        resources: ["*"],
+      })
+    );
+    proxyFunction.grantInvoke(new iam.ServicePrincipal("ses.amazonaws.com"));
 
     const sesReciever = new ses.ReceiptRuleSet(this, "SESReciever");
 
-    domains.forEach((domain)=>{
+    domains.forEach((domain) => {
+      this.provisionDomain(domain);
       new ses.ReceiptRule(this, `RecieptRule${domain}`, {
         ruleSet: sesReciever,
         recipients: [domain],
@@ -58,8 +70,8 @@ export class SesProxyStack extends Stack {
             invocationType: actions.LambdaInvocationType.EVENT,
           }),
         ],
-      })
-    })
+      });
+    });
 
     bucket.grantPut(new iam.ServicePrincipal("ses.amazonaws.com"));
   }
@@ -69,9 +81,13 @@ export class SesProxyStack extends Stack {
       domainName,
     });
 
-    const sesIdentity = new ses.EmailIdentity(this, `SESIdentity${domainName}`, {
-      identity: ses.Identity.publicHostedZone(zone),
-    });
+    const sesIdentity = new ses.EmailIdentity(
+      this,
+      `SESIdentity${domainName}`,
+      {
+        identity: ses.Identity.publicHostedZone(zone),
+      }
+    );
 
     const mxRecord = new r53.MxRecord(this, `MX${domainName}`, {
       zone,
