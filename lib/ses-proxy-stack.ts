@@ -10,29 +10,40 @@ import {
   aws_iam as iam,
   RemovalPolicy,
   Duration,
+  CfnParameter,
 } from "aws-cdk-lib";
+import { JsonFileLogDriver } from "aws-cdk-lib/aws-ecs";
 import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import { join } from "path";
+import { TLogLevelName } from "tslog";
+
+export interface SesProxyStackProps extends StackProps {
+  domains: string[];
+  routes: [string, string][];
+  lambdaLogLevel?: TLogLevelName;
+}
+
+const SesProxyStackPropsDefaults = {
+  lambdaLogLevel: "warn" as TLogLevelName,
+};
 
 export class SesProxyStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  private props: SesProxyStackProps;
+
+  constructor(scope: Construct, id: string, props: SesProxyStackProps) {
     super(scope, id, props);
 
-    const domains = [
-      "unstacked.xyz",
-      "unstacked.io",
-      "unstacked.cloud",
-      "unstacked.me",
-      "unstacked.media",
-      "unstacked.online",
-      "pwed.me",
-      "freddiestodd.art",
-    ];
+    this.props = { ...SesProxyStackPropsDefaults, ...props };
 
     const bucket = new s3.Bucket(this, "Bucket", {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
+      lifecycleRules: [
+        {
+          expiration: Duration.days(7),
+        },
+      ],
     });
 
     const proxyFunction = new aws_lambda_nodejs.NodejsFunction(
@@ -44,11 +55,20 @@ export class SesProxyStack extends Stack {
         depsLockFilePath: join(__dirname, "..", "package-lock.json"),
         environment: {
           S3_BUCKET_NAME: bucket.bucketName,
+          LOG_LEVEL: this.props.lambdaLogLevel as TLogLevelName,
         },
         logRetention: RetentionDays.ONE_WEEK,
         timeout: Duration.seconds(20),
         architecture: lambda.Architecture.ARM_64,
         memorySize: 1024,
+        bundling: {
+          sourceMap: true,
+          sourceMapMode: aws_lambda_nodejs.SourceMapMode.EXTERNAL,
+          minify: true,
+          define: {
+            'process.env.ROUTE_LIST': JSON.stringify(this.props.routes) // temp until we add dynamo
+          }
+        }
       }
     );
     bucket.grantReadWrite(proxyFunction);
@@ -62,7 +82,7 @@ export class SesProxyStack extends Stack {
 
     const sesReciever = new ses.ReceiptRuleSet(this, "SESReciever");
 
-    domains.forEach((domain) => {
+    this.props.domains.forEach((domain) => {
       this.provisionDomain(domain);
       new ses.ReceiptRule(this, `RecieptRule${domain}`, {
         ruleSet: sesReciever,
