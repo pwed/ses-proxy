@@ -5,5 +5,33 @@
   },
   "acknowledged-issue-numbers": [
     21902
-  ]
+  ],
+  "hosted-zone:account=806124249357:domainName=unstacked.io:region=us-west-2": {
+    "Id": "/hostedzone/Z04548201JBR9N1ZDERZ2",
+    "Name": "unstacked.io."
+  },
+  "hosted-zone:account=806124249357:domainName=unstacked.cloud:region=us-west-2": {
+    "Id": "/hostedzone/Z09300799QO0L1DG3106",
+    "Name": "unstacked.cloud."
+  },
+  "hosted-zone:account=806124249357:domainName=unstacked.me:region=us-west-2": {
+    "Id": "/hostedzone/Z045485534J01XKZ7PLBG",
+    "Name": "unstacked.me."
+  },
+  "hosted-zone:account=806124249357:domainName=unstacked.media:region=us-west-2": {
+    "Id": "/hostedzone/Z05214061HCS1ICGTNJY3",
+    "Name": "unstacked.media."
+  },
+  "hosted-zone:account=806124249357:domainName=unstacked.online:region=us-west-2": {
+    "Id": "/hostedzone/Z0446290BZI9KI07JSNL",
+    "Name": "unstacked.online."
+  },
+  "hosted-zone:account=806124249357:domainName=pwed.me:region=us-west-2": {
+    "Id": "/hostedzone/Z01252978MAIJD508OO9",
+    "Name": "pwed.me."
+  },
+  "hosted-zone:account=806124249357:domainName=freddiestodd.art:region=us-west-2": {
+    "Id": "/hostedzone/Z040355610CY0F2EN5WGE",
+    "Name": "freddiestodd.art."
+  }
 }

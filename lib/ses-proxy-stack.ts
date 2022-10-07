@@ -19,29 +19,36 @@ export class SesProxyStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const domains = ["unstacked.xyz"];
+    const domains = [
+      "unstacked.xyz",
+      "unstacked.io",
+      "unstacked.cloud",
+      "unstacked.me",
+      "unstacked.media",
+      "unstacked.online",
+      "pwed.me",
+      "freddiestodd.art",
+    ];
 
     const bucket = new s3.Bucket(this, "Bucket", {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    // SES Sandbox temp
-    const gmail0 = new ses.EmailIdentity(this, "Gmail0", {
-      identity: ses.Identity.email("freddiestoddart000@gmail.com"),
-    });
-
     const proxyFunction = new aws_lambda_nodejs.NodejsFunction(
       this,
       "ProxyFunction",
       {
-        entry: join(__dirname, "ses-proxy.lambda.ts"),
+        entry: join(__dirname, "ses-proxy.lambda", "handler.ts"),
         handler: "handler",
         depsLockFilePath: join(__dirname, "..", "package-lock.json"),
         environment: {
           S3_BUCKET_NAME: bucket.bucketName,
         },
         logRetention: RetentionDays.ONE_WEEK,
+        timeout: Duration.seconds(20),
+        architecture: lambda.Architecture.ARM_64,
+        memorySize: 1024,
       }
     );
     bucket.grantReadWrite(proxyFunction);
