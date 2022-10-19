@@ -10,13 +10,12 @@ import {
   aws_iam as iam,
   RemovalPolicy,
   Duration,
-  CfnParameter,
-} from "aws-cdk-lib";
-import { JsonFileLogDriver } from "aws-cdk-lib/aws-ecs";
-import { RetentionDays } from "aws-cdk-lib/aws-logs";
-import { Construct } from "constructs";
-import { join } from "path";
-import { TLogLevelName } from "tslog";
+  custom_resources,
+} from 'aws-cdk-lib';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { Construct } from 'constructs';
+import { join } from 'path';
+import { TLogLevelName } from 'tslog';
 
 export interface SesProxyStackProps extends StackProps {
   domains: string[];
@@ -25,7 +24,7 @@ export interface SesProxyStackProps extends StackProps {
 }
 
 const SesProxyStackPropsDefaults = {
-  lambdaLogLevel: "warn" as TLogLevelName,
+  lambdaLogLevel: 'warn' as TLogLevelName,
 };
 
 export class SesProxyStack extends Stack {
@@ -36,7 +35,7 @@ export class SesProxyStack extends Stack {
 
     this.props = { ...SesProxyStackPropsDefaults, ...props };
 
-    const bucket = new s3.Bucket(this, "Bucket", {
+    const bucket = new s3.Bucket(this, 'Bucket', {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
       lifecycleRules: [
@@ -48,11 +47,11 @@ export class SesProxyStack extends Stack {
 
     const proxyFunction = new aws_lambda_nodejs.NodejsFunction(
       this,
-      "ProxyFunction",
+      'ProxyFunction',
       {
-        entry: join(__dirname, "ses-proxy.lambda", "handler.ts"),
-        handler: "handler",
-        depsLockFilePath: join(__dirname, "..", "package-lock.json"),
+        entry: join(__dirname, 'ses-proxy.lambda', 'handler.ts'),
+        handler: 'handler',
+        depsLockFilePath: join(__dirname, '..', 'package-lock.json'),
         environment: {
           S3_BUCKET_NAME: bucket.bucketName,
           LOG_LEVEL: this.props.lambdaLogLevel as TLogLevelName,
@@ -66,26 +65,54 @@ export class SesProxyStack extends Stack {
           sourceMapMode: aws_lambda_nodejs.SourceMapMode.EXTERNAL,
           minify: true,
           define: {
-            'process.env.ROUTE_LIST': JSON.stringify(this.props.routes) // temp until we add dynamo
-          }
-        }
+            'process.env.ROUTE_LIST': JSON.stringify(this.props.routes), // temp until we add dynamo
+          },
+        },
       }
     );
     bucket.grantReadWrite(proxyFunction);
     proxyFunction.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["ses:SendRawEmail"],
-        resources: ["*"],
+        actions: ['ses:SendRawEmail'],
+        resources: ['*'],
       })
     );
-    proxyFunction.grantInvoke(new iam.ServicePrincipal("ses.amazonaws.com"));
+    proxyFunction.grantInvoke(new iam.ServicePrincipal('ses.amazonaws.com'));
 
-    const sesReciever = new ses.ReceiptRuleSet(this, "SESReciever");
+    const sesReceiptRuleSet = new ses.ReceiptRuleSet(this, 'SESReceiptRuleSet');
+    new ses.DropSpamReceiptRule(this, 'SpamRule', {
+      ruleSet: sesReceiptRuleSet,
+      scanEnabled: true,
+    });
+
+    const enableSesReceiver = new custom_resources.AwsCustomResource(
+      this,
+      'EnableSesReceiver',
+      {
+        onUpdate: {
+          service: 'SES',
+          action: 'setActiveReceiptRuleSet',
+          parameters: {
+            RuleSetName: sesReceiptRuleSet.receiptRuleSetName,
+          },
+          physicalResourceId: custom_resources.PhysicalResourceId.of(
+            sesReceiptRuleSet.receiptRuleSetName
+          ),
+        },
+        policy: custom_resources.AwsCustomResourcePolicy.fromStatements([
+          new iam.PolicyStatement({
+            actions: ['ses:SetActiveReceiptRuleSet'],
+            resources: ['*'],
+            effect: iam.Effect.ALLOW,
+          }),
+        ]),
+      }
+    );
 
     this.props.domains.forEach((domain) => {
       this.provisionDomain(domain);
       new ses.ReceiptRule(this, `RecieptRule${domain}`, {
-        ruleSet: sesReciever,
+        ruleSet: sesReceiptRuleSet,
         recipients: [domain],
         actions: [
           new actions.S3({
@@ -100,7 +127,7 @@ export class SesProxyStack extends Stack {
       });
     });
 
-    bucket.grantPut(new iam.ServicePrincipal("ses.amazonaws.com"));
+    bucket.grantPut(new iam.ServicePrincipal('ses.amazonaws.com'));
   }
 
   provisionDomain(domainName: string) {
@@ -113,6 +140,8 @@ export class SesProxyStack extends Stack {
       `SESIdentity${domainName}`,
       {
         identity: ses.Identity.publicHostedZone(zone),
+        dkimSigning: true,
+        mailFromDomain: `mail.${domainName}`,
       }
     );
 
@@ -120,6 +149,20 @@ export class SesProxyStack extends Stack {
       zone,
       values: [
         { priority: 10, hostName: `inbound-smtp.${this.region}.amazonaws.com` },
+      ],
+    });
+
+    const spfRecord = new r53.TxtRecord(this, `SPF${domainName}`, {
+      zone,
+      values: ['v=spf1 include:amazonses.com ~all'],
+    });
+
+    const dmarcRecord = new r53.TxtRecord(this, `DMARC${domainName}`, {
+      zone,
+      recordName: `_DMARC.${domainName}`,
+      values: [
+        //TODO: need to add destinations for this mailbox
+        `v=DMARC1; p=none; rua=mailto:postmaster@${domainName}; ruf=mailto:postmaster@${domainName}; fo=1`,
       ],
     });
   }

@@ -1,6 +1,5 @@
-let routeList = process.env.ROUTE_LIST as unknown as [string, string][];
+const routeList = process.env.ROUTE_LIST as unknown as [string, string][];
 const userMapping = new Map<string, string>(routeList);
-
 
 interface route {
   sender: string;
@@ -8,9 +7,9 @@ interface route {
 }
 
 export function routeMail(recievedRoute: route): route {
-  let sender = "";
-  let destination = "";
-  let destinationParts = recievedRoute.destination.split("_");
+  let sender = '';
+  let destination = '';
+  const destinationParts = recievedRoute.destination.split('_');
   if (userMapping.has(recievedRoute.destination)) {
     destination = userMapping.get(recievedRoute.destination)!;
     sender = generateSenderAddress(
@@ -30,17 +29,17 @@ export function routeMail(recievedRoute: route): route {
 }
 
 function parseDestination(address: string): route {
-  const parts = address.split("_");
+  const parts = address.split('_');
   const sender = parts[parts.length - 1];
   const recipientComponent = address.substring(
     0,
     address.length - sender.length - 1
   );
-  const recipient = recipientComponent.replace("_at_", "@");
+  const recipient = recipientComponent.replace('_at_', '@');
 
   return { sender, destination: recipient };
 }
 
 function generateSenderAddress(sender: string, destination: string): string {
-  return [sender.replace("@", "_at_"), destination].join("_");
+  return [sender.replace('@', '_at_'), destination].join('_');
 }
