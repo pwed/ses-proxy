@@ -1,3 +1,4 @@
+import { join } from 'path';
 import {
   Stack,
   StackProps,
@@ -14,7 +15,6 @@ import {
 } from 'aws-cdk-lib';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
-import { join } from 'path';
 import { TLogLevelName } from 'tslog';
 
 export interface SesProxyStackProps extends StackProps {
@@ -23,8 +23,8 @@ export interface SesProxyStackProps extends StackProps {
   lambdaLogLevel?: TLogLevelName;
 }
 
-const SesProxyStackPropsDefaults = {
-  lambdaLogLevel: 'warn' as TLogLevelName,
+const SesProxyStackPropsDefaults: Partial<SesProxyStackProps> = {
+  lambdaLogLevel: 'warn',
 };
 
 export class SesProxyStack extends Stack {
@@ -80,10 +80,24 @@ export class SesProxyStack extends Stack {
     proxyFunction.grantInvoke(new iam.ServicePrincipal('ses.amazonaws.com'));
 
     const sesReceiptRuleSet = new ses.ReceiptRuleSet(this, 'SESReceiptRuleSet');
-    new ses.DropSpamReceiptRule(this, 'SpamRule', {
+    const spamFilter = new ses.DropSpamReceiptRule(this, 'SpamRule', {
       ruleSet: sesReceiptRuleSet,
       scanEnabled: true,
     });
+    new ses.ReceiptRule(this, `ProcessRule`, {
+      after: spamFilter.rule,
+      ruleSet: sesReceiptRuleSet,
+      actions: [
+        new actions.S3({
+          bucket,
+        }),
+        new actions.Lambda({
+          function: proxyFunction,
+          invocationType: actions.LambdaInvocationType.EVENT,
+        }),
+      ],
+    });
+    bucket.grantPut(new iam.ServicePrincipal('ses.amazonaws.com'));
 
     const enableSesReceiver = new custom_resources.AwsCustomResource(
       this,
@@ -111,23 +125,7 @@ export class SesProxyStack extends Stack {
 
     this.props.domains.forEach((domain) => {
       this.provisionDomain(domain);
-      new ses.ReceiptRule(this, `RecieptRule${domain}`, {
-        ruleSet: sesReceiptRuleSet,
-        recipients: [domain],
-        actions: [
-          new actions.S3({
-            bucket,
-            objectKeyPrefix: domain,
-          }),
-          new actions.Lambda({
-            function: proxyFunction,
-            invocationType: actions.LambdaInvocationType.EVENT,
-          }),
-        ],
-      });
     });
-
-    bucket.grantPut(new iam.ServicePrincipal('ses.amazonaws.com'));
   }
 
   provisionDomain(domainName: string) {
