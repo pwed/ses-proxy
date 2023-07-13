@@ -34,11 +34,11 @@
     "typescript": "^4.8.4"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.41.0",
+    "aws-cdk-lib": "2.80.0",
     "aws-lambda": "^1.0.7",
-    "aws-sdk": "^2.1230.0",
     "constructs": "^10.1.304",
-    "esbuild": "^0.15.10",
+    "aws-sdk": "^2.1353.0",
+    "esbuild": "^0.17.15",
     "source-map-support": "^0.5.21",
     "tslog": "^3.3.4"
   }
