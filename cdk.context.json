@@ -4,7 +4,10 @@
     "Name": "unstacked.xyz."
   },
   "acknowledged-issue-numbers": [
-    21902
+    21902,
+    34892,
+    30717,
+    32775
   ],
   "hosted-zone:account=806124249357:domainName=unstacked.io:region=us-west-2": {
     "Id": "/hostedzone/Z04548201JBR9N1ZDERZ2",
