@@ -17,7 +17,7 @@
     "@types/node": "10.17.27",
     "@types/prettier": "2.6.0",
     "@typescript-eslint/eslint-plugin": "^5.40.1",
-    "aws-cdk": "2.41.0",
+    "aws-cdk": "^2.1021.0",
     "eslint": "^8.25.0",
     "eslint-config-node": "^4.1.0",
     "eslint-config-prettier": "^8.5.0",
@@ -34,11 +34,11 @@
     "typescript": "^4.8.4"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.80.0",
+    "aws-cdk-lib": "^2.206.0",
     "aws-lambda": "^1.0.7",
-    "constructs": "^10.1.304",
     "aws-sdk": "^2.1353.0",
-    "esbuild": "^0.17.15",
+    "constructs": "^10.1.304",
+    "esbuild": "^0.25.8",
     "source-map-support": "^0.5.21",
     "tslog": "^3.3.4"
   }

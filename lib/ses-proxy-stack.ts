@@ -9,11 +9,11 @@ import {
   aws_lambda as lambda,
   aws_lambda_nodejs,
   aws_iam as iam,
+  aws_logs as logs,
   RemovalPolicy,
   Duration,
   custom_resources,
 } from 'aws-cdk-lib';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import { TLogLevelName } from 'tslog';
 
@@ -45,6 +45,16 @@ export class SesProxyStack extends Stack {
       ],
     });
 
+    const logGroup = new logs.LogGroup(
+      this,
+      "SesProxyLogGroup",
+      {
+        retention: logs.RetentionDays.ONE_WEEK,
+        logGroupClass: logs.LogGroupClass.INFREQUENT_ACCESS,
+        
+      }
+    )
+
     const proxyFunction = new aws_lambda_nodejs.NodejsFunction(
       this,
       'ProxyFunction',
@@ -56,7 +66,7 @@ export class SesProxyStack extends Stack {
           S3_BUCKET_NAME: bucket.bucketName,
           LOG_LEVEL: this.props.lambdaLogLevel as TLogLevelName,
         },
-        logRetention: RetentionDays.ONE_WEEK,
+        logGroup,
         timeout: Duration.seconds(20),
         architecture: lambda.Architecture.ARM_64,
         memorySize: 1024,
